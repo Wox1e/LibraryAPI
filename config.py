@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     REF_TOK_LIFETIME_DAYS: int
     ACCS_TOK_LIFETIME_MIN: int
+    
 
     model_config = SettingsConfigDict(env_file=".env")
 

@@ -10,3 +10,4 @@ class registerUserModel(BaseModel):
 class loginUserModel(BaseModel):
     username: str
     password: str
+

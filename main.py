@@ -35,7 +35,7 @@ def refresh(request:Request, response:Response):
         return {"status":"Failed"}
      
 @app.post("/auth/register")
-def register(input_user:registerUserModel, response:Response):
+def register(input_user:registerUserModel, response:Response, request:Request):
     """Register Endpoint                                \n
         Required parameters:                            \n
         - first_name : First name                       \n
@@ -45,14 +45,9 @@ def register(input_user:registerUserModel, response:Response):
         - password : Password                           \n
 
     """
-    first_name = input_user.first_name
-    second_name = input_user.second_name
-    birth_date = input_user.birth_date
-    username = input_user.username
     password = input_user.password
     hash = sha256(password.encode('utf-8')).hexdigest()    
-    
-    user = User(first_name, second_name, birth_date, username, hash)
+    user = User(input_user.first_name, input_user.second_name, input_user.birth_date, input_user.username, hash)
     
     try:
         session.add(user)
@@ -62,8 +57,6 @@ def register(input_user:registerUserModel, response:Response):
         return {"status":"Error"}
     
     TokenHandler.set_tokens(user, response)    
-
-
     return {"status":"Ok"}
 
 @app.post("/auth/login")
@@ -74,11 +67,10 @@ def login(input_user:loginUserModel, response:Response):
         - password : Password                           \n
     """
 
-    username = input_user.username
     password = input_user.password
     hash = sha256(password.encode('utf-8')).hexdigest()    
 
-    user = session.query(User).filter(User.username == username).first()
+    user = session.query(User).filter(User.username == input_user.username).first()
     user_hash = user.password
 
     if user_hash == hash:
@@ -94,3 +86,4 @@ def logout(response:Response):
         return {"status":"Ok"}
     except:
         return {"status": "Error"}
+    
