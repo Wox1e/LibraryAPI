@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, Response
 from db.models import User, Author
 from db.core import session
 from hashlib import sha256
-from auth import  JWTvalidator, TokenHandler
+from auth import  JWTvalidator, TokenHandler, UserValidation
 from validators import loginUserModel, registerUserModel, authorCreateModel
 
 
@@ -92,9 +92,12 @@ def logout(response:Response):
 @app.post("/author/create")
 def create_author(request:Request, author_input:authorCreateModel):
     
-    #
-    # *VALIDATION*
-    # 
+    try:
+        validation = UserValidation(request)
+        if not validation.is_admin: raise UserValidation.NotAuthorized
+    except UserValidation.NotAuthorized:
+        return {"status":"NotAuthorized"}
+
 
     author = Author(author_input.name, author_input.bio, author_input.birth_date)
     try:
@@ -106,29 +109,38 @@ def create_author(request:Request, author_input:authorCreateModel):
     return {"status":"Ok"}
 
 @app.get("/author/{id}")
-def get_author(id:int):
+def get_author(id:int, request:Request):
 
-    #
-    # *VALIDATION*
-    # 
+    try:
+        validation = UserValidation(request)
+        if not validation.is_admin: raise UserValidation.NotAuthorized
+    except UserValidation.NotAuthorized:
+        return {"status":"NotAuthorized"}
+
 
     author = session.query(Author).filter(Author.id == id).first()
     return author
 
 @app.get("/author")
-def get_all_authors():
+def get_all_authors(request:Request):
 
-    #
-    # *VALIDATION*
-    # 
+    try:
+        validation = UserValidation(request)
+        if not validation.is_admin: raise UserValidation.NotAuthorized
+    except UserValidation.NotAuthorized:
+        return {"status":"NotAuthorized"}
 
     authors = session.query(Author).all()
     return authors
 
 @app.put("/author/{id}")
-def update_author(author_input:authorCreateModel, id:int):
+def update_author(request:Request, author_input:authorCreateModel, id:int):
     
-    #validation
+    try:
+        validation = UserValidation(request)
+        if not validation.is_admin: raise UserValidation.NotAuthorized
+    except UserValidation.NotAuthorized:
+        return {"status":"NotAuthorized"}
     
     author = get_author(id)
 
@@ -143,7 +155,14 @@ def update_author(author_input:authorCreateModel, id:int):
     return {"status": "Ok"}
 
 @app.delete("/author/{id}")
-def delete_author(id:int):
+def delete_author(request:Request, id:int):
+
+    try:
+        validation = UserValidation(request)
+        if not validation.is_admin: raise UserValidation.NotAuthorized
+    except UserValidation.NotAuthorized:
+        return {"status":"NotAuthorized"}
+
 
     try:
         author = get_author(id)
