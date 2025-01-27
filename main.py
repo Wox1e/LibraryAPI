@@ -1,34 +1,9 @@
 from fastapi import FastAPI, Request, Response
-from pydantic import BaseModel
-from db.models import User
-from db.db import session
+from db.models import User, Author
+from db.core import session
 from hashlib import sha256
-from auth import JWT_generator, TokenChecker, JWT_decoder
-
-
-#RENAME !! <---
-class registerUserModel(BaseModel):
-    first_name:     str
-    second_name:    str
-    birth_date:     str
-    username:       str
-    password:       str
-                 
-class loginUserModel(BaseModel):
-    username: str
-    password: str
-
-
-
-def set_tokens(user:User, response:Response) -> None:
-    token_body = {
-        "userId":user.id,
-        "is_admin":user.is_admin
-    }
-
-    access_token, refresh_token = JWT_generator.generate_tokens(token_body) 
-    response.set_cookie(key="access_token", value=access_token, httponly=True)
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True)
+from auth import  JWTvalidator, TokenHandler
+from validators import loginUserModel, registerUserModel, authorCreateModel
 
 
 
@@ -48,22 +23,19 @@ def refresh(request:Request, response:Response):
         return {"status":"Error"}
    
    
-    is_valid = TokenChecker.check(refresh_token)
+    is_valid = JWTvalidator.check(refresh_token)
 
     
     if is_valid:
-        decoded_token = JWT_decoder.decode(refresh_token)
-        id = decoded_token["userId"]
-        user = session.query(User).filter(User.id == id).first()
-        set_tokens(user, response)
+        user = TokenHandler.get_user_bytoken(refresh_token)
+        TokenHandler.set_tokens(user, response)
         return {"status":"Ok"}
     else:
-        request.cookies["refresh_token"] = ""
+        TokenHandler.remove_tokens(response)
         return {"status":"Failed"}
-
-
+     
 @app.post("/auth/register")
-def register(input_user:registerUserModel, response:Response):
+def register(input_user:registerUserModel, response:Response, request:Request):
     """Register Endpoint                                \n
         Required parameters:                            \n
         - first_name : First name                       \n
@@ -73,14 +45,9 @@ def register(input_user:registerUserModel, response:Response):
         - password : Password                           \n
 
     """
-    first_name = input_user.first_name
-    second_name = input_user.second_name
-    birth_date = input_user.birth_date
-    username = input_user.username
     password = input_user.password
     hash = sha256(password.encode('utf-8')).hexdigest()    
-    
-    user = User(first_name, second_name, birth_date, username, hash)
+    user = User(input_user.first_name, input_user.second_name, input_user.birth_date, input_user.username, hash)
     
     try:
         session.add(user)
@@ -89,9 +56,7 @@ def register(input_user:registerUserModel, response:Response):
         session.rollback()
         return {"status":"Error"}
     
-    set_tokens(user, response)    
-
-
+    TokenHandler.set_tokens(user, response)    
     return {"status":"Ok"}
 
 @app.post("/auth/login")
@@ -102,17 +67,89 @@ def login(input_user:loginUserModel, response:Response):
         - password : Password                           \n
     """
 
-    username = input_user.username
     password = input_user.password
     hash = sha256(password.encode('utf-8')).hexdigest()    
 
-    user = session.query(User).filter(User.username == username).first()
+    user = session.query(User).filter(User.username == input_user.username).first()
     user_hash = user.password
 
     if user_hash == hash:
-        set_tokens(user, response)
+        TokenHandler.set_tokens(user, response)
         return {"status": "Ok"}
     else:
         return {"Status":"Failed"}
 
+@app.get("/auth/logout")
+def logout(response:Response):
+    try:
+        TokenHandler.remove_tokens(response)
+        return {"status":"Ok"}
+    except:
+        return {"status": "Error"}
+    
 
+
+@app.post("/author/create")
+def create_author(request:Request, author_input:authorCreateModel):
+    
+    #
+    # *VALIDATION*
+    # 
+
+    author = Author(author_input.name, author_input.bio, author_input.birth_date)
+    try:
+        session.add(author)
+        session.commit()
+    except:
+        session.rollback()
+        return {"status":"Error"}
+    return {"status":"Ok"}
+
+@app.get("/author/{id}")
+def get_author(id:int):
+
+    #
+    # *VALIDATION*
+    # 
+
+    author = session.query(Author).filter(Author.id == id).first()
+    return author
+
+@app.get("/author")
+def get_all_authors():
+
+    #
+    # *VALIDATION*
+    # 
+
+    authors = session.query(Author).all()
+    return authors
+
+@app.put("/author/{id}")
+def update_author(author_input:authorCreateModel, id:int):
+    
+    #validation
+    
+    author = get_author(id)
+
+    try:
+        author.name = author_input.name
+        author.bio = author_input.bio
+        author.birth_date = author_input.birth_date
+        session.commit()
+    except:
+        return {"status":"Error"}
+
+    return {"status": "Ok"}
+
+@app.delete("/author/{id}")
+def delete_author(id:int):
+
+    try:
+        author = get_author(id)
+        session.delete(author)
+        session.commit()
+    except:
+        {"status":"Failed"}
+    
+    return {"status": "Ok"}
