@@ -1,34 +1,9 @@
 from fastapi import FastAPI, Request, Response
-from pydantic import BaseModel
 from db.models import User
-from db.db import session
+from db.core import session
 from hashlib import sha256
-from auth import JWT_generator, TokenChecker, JWT_decoder
-
-
-#RENAME !! <---
-class registerUserModel(BaseModel):
-    first_name:     str
-    second_name:    str
-    birth_date:     str
-    username:       str
-    password:       str
-                 
-class loginUserModel(BaseModel):
-    username: str
-    password: str
-
-
-
-def set_tokens(user:User, response:Response) -> None:
-    token_body = {
-        "userId":user.id,
-        "is_admin":user.is_admin
-    }
-
-    access_token, refresh_token = JWT_generator.generate_tokens(token_body) 
-    response.set_cookie(key="access_token", value=access_token, httponly=True)
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True)
+from auth import  JWTvalidator, TokenHandler
+from validators import loginUserModel, registerUserModel
 
 
 
@@ -48,20 +23,17 @@ def refresh(request:Request, response:Response):
         return {"status":"Error"}
    
    
-    is_valid = TokenChecker.check(refresh_token)
+    is_valid = JWTvalidator.check(refresh_token)
 
     
     if is_valid:
-        decoded_token = JWT_decoder.decode(refresh_token)
-        id = decoded_token["userId"]
-        user = session.query(User).filter(User.id == id).first()
-        set_tokens(user, response)
+        user = TokenHandler.get_user_bytoken(refresh_token)
+        TokenHandler.set_tokens(user, response)
         return {"status":"Ok"}
     else:
-        request.cookies["refresh_token"] = ""
+        TokenHandler.remove_tokens(response)
         return {"status":"Failed"}
-
-
+     
 @app.post("/auth/register")
 def register(input_user:registerUserModel, response:Response):
     """Register Endpoint                                \n
@@ -89,7 +61,7 @@ def register(input_user:registerUserModel, response:Response):
         session.rollback()
         return {"status":"Error"}
     
-    set_tokens(user, response)    
+    TokenHandler.set_tokens(user, response)    
 
 
     return {"status":"Ok"}
@@ -110,9 +82,15 @@ def login(input_user:loginUserModel, response:Response):
     user_hash = user.password
 
     if user_hash == hash:
-        set_tokens(user, response)
+        TokenHandler.set_tokens(user, response)
         return {"status": "Ok"}
     else:
         return {"Status":"Failed"}
 
-
+@app.get("/auth/logout")
+def logout(response:Response):
+    try:
+        TokenHandler.remove_tokens(response)
+        return {"status":"Ok"}
+    except:
+        return {"status": "Error"}
