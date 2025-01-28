@@ -2,9 +2,9 @@ from fastapi import FastAPI, Request, Response
 from db.models import User, Author, Book
 from db.core import session
 from hashlib import sha256
+from sqlalchemy.orm import load_only
 from auth import  JWTvalidator, TokenHandler, UserValidation, AdminValidation
 from validators import *
-
 
 
 app = FastAPI()
@@ -88,6 +88,8 @@ def logout(response:Response):
     except:
         return {"status": "Error"}
     
+
+
 
 @app.post("/author/create")
 def create_author(request:Request, author_input:authorCreateModel):
@@ -177,12 +179,12 @@ def create_book(request:Request, book_input:bookCreateModel):
     except UserValidation.NotAuthorized as e:
         return {"status":"NotAuthorized", "error":str(e.reason)}
     
-    if id not in range(-2_147_483_647, 2_147_483_647): return {"status":"Error", "message":"value out of int range"}
+    if book_input.quantity not in range(-2_147_483_647, 2_147_483_647): return {"status":"Error", "message":"value out of int range"}
     author = session.query(Author).filter(Author.id == book_input.author_id).first()
     if author is None: return {"status":"Error","message":f"Author with author_id = {book_input.author_id} doesnt exist."}
 
     try:
-        book = Book(book_input.name, book_input.description, book_input.publication_date, book_input.author_id, book_input.genre)
+        book = Book(book_input.name, book_input.description, book_input.publication_date, book_input.author_id, book_input.genre, book_input.quantity)
         session.add(book)
         session.commit()
     except:
@@ -220,6 +222,7 @@ def update_book(request:Request, book_input:bookCreateModel, id:int):
         return {"status":"NotAuthorized", "error":str(e.reason)}
     
     if id not in range(-2_147_483_647, 2_147_483_647): return {"status":"Error", "message":"value out of int range"}
+    if book_input.quantity not in range(-2_147_483_647, 2_147_483_647): return {"status":"Error", "message":"value out of int range"}
     author = session.query(Author).filter(Author.id == book_input.author_id).first()
     if author is None: return {"status":"Error","message":f"Author with author_id = {book_input.author_id} doesnt exist."}
 
@@ -231,6 +234,7 @@ def update_book(request:Request, book_input:bookCreateModel, id:int):
         book.publication_date = book_input.publication_date
         book.author_id = book_input.author_id
         book.genre = book_input.genre
+        book.quantity = book_input.quantity
         session.commit()
     except:
         session.rollback()
@@ -256,3 +260,72 @@ def delete_book(request:Request, id:int):
     
     return {"status": "Ok"}
 
+
+
+@app.get("/reader")
+def get_readers(request:Request):
+    try:
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
+    
+    readers = session.query(User).\
+    filter(User.is_admin == False).\
+    options(load_only(User.id, User.username, User.first_name, User.second_name, User.birth_date)).\
+    all()
+    
+    return readers
+
+@app.get("/reader/{id}")
+def get_reader(request:Request, id:int):
+    try:
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
+    
+    if id not in range(-2_147_483_647, 2_147_483_647): return {"status":"Error", "message":"value out of int range"}
+
+    reader = session.query(User).\
+    filter(User.is_admin == False).\
+    options(load_only(User.id, User.username, User.first_name, User.second_name, User.birth_date)).\
+    filter(User.id == id).\
+    first()
+    
+    return reader
+    
+
+
+@app.get("/profile")
+def get_profile(request:Request):
+    try:
+        validation = UserValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
+    
+    user = validation.get_user()
+    return {
+        "Username": user.username,
+        "First name":user.first_name,
+        "Second name":user.second_name,
+        "Birth date": user.birth_date
+    }
+
+@app.put("/profile")
+def update_profile(input_user:updateUserModel, request:Request):
+    try:
+        validation = UserValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
+
+    user = validation.get_user()
+
+    try:
+        user.first_name = input_user.first_name
+        user.second_name = input_user.second_name
+        user.birth_date = input_user.birth_date
+        session.commit()
+    except:
+        session.rollback()
+        return {"status":"Error"}
+
+    return {"status": "Ok"}

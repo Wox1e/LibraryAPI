@@ -104,6 +104,7 @@ class TokenHandler:
     @staticmethod
     def set_tokens(user:User, response:Response) -> None:
         if user is None: return TokenHandler.remove_tokens(response)
+
         token_body = {
             "userId":user.id,
             "is_admin":user.is_admin
@@ -147,9 +148,15 @@ class UserValidation:
         except jwt.exceptions.PyJWTError as e:
             raise self.NotAuthorized(e)
         
+    def get_user(self) -> User:
+        return self.user
 
 class AdminValidation:
     def __init__(self, request:Request):
         validation = UserValidation(request)
         if not validation.is_admin: raise UserValidation.NotAuthorized("not a admin")
 
+
+
+        
+        

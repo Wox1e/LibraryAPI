@@ -1,5 +1,6 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Boolean, Date, ForeignKey
+from hashlib import md5
 
 Base = declarative_base()
 
@@ -45,12 +46,14 @@ class User(Base):                                                               
 class Author(Base):                                                                 # ORM model for author_table
     __tablename__ = "author_table"                                                  # Table name
 
-    id = Column("id", Integer, primary_key=True)                                    # ID            | serial, primary_key
-    name = Column("name", String(100), nullable=False, unique=True)                 # name          | character varying(100), not null, unique
-    bio = Column("bio", String(1000), nullable=False)                                # bio           | character varying(1000), not null
+    id = Column("id", Integer, primary_key=True)                                    # ID            | serial, primary_key                   
+    name = Column("name", String(100), nullable=False)                              # name          | character varying(100), not null, unique
+    bio = Column("bio", String(1000), nullable=False)                               # bio           | character varying(1000), not null
     birth_date = Column("birth_date", Date, nullable=False)                         # birth_date    | date, not null
-   
+    author_hash = Column("author_hash", String(32), nullable=False, unique=True)    # author_hash   | character varying(32), not null, unique
 
+                                                                                    # Author hash uses to store authors with same name and different birth dates
+                                                                                    # And not store one author many times
 
     def __init__(self, 
                  name: str, 
@@ -69,6 +72,7 @@ class Author(Base):                                                             
         self.name = name
         self.bio = bio
         self.birth_date = birth_date,
+        self.author_hash = md5(str(name).encode("utf-8") + str(birth_date).encode("utf-8")).hexdigest()
 
 class Book(Base):                                                                   # ORM model for book_table
     __tablename__ = "book_table"                                                    # Table name
@@ -79,13 +83,20 @@ class Book(Base):                                                               
     publication_date = Column("publication_date", Date, nullable=False)             # publication_date     | date, not null
     author_id = Column(Integer, ForeignKey("author_table.id"), nullable=False)      # author_id            | int, foreign key
     genre = Column("genre", String(32), nullable=False)                             # genre                | character varying(32), not null
+    quantity = Column("quantity", Integer, nullable=False)                          # quantity             | int, not null
+    book_hash = Column("book_hash", String(32), nullable=False, unique=True)        # book_hash            | character varying(32), not null, unique
+
+                                                                                    # Book hash uses to store books with same name and different publication dates
+                                                                                    # And not allows store one book many times
+
 
     def __init__(self, 
                  name: str, 
                  description: str, 
                  publication_date:str,
                  author_id: int, 
-                 genre: str
+                 genre: str,
+                 quantity: int
                  ):
         
         """
@@ -94,6 +105,7 @@ class Book(Base):                                                               
         :param name: Name of the author                   \n
         :param bio: Author`s biography                    \n
         :param birth_date: Author`s birth date            \n
+        :param quantity: Book quantity                    \n
         """
 
         self.name = name
@@ -101,3 +113,5 @@ class Book(Base):                                                               
         self.publication_date = publication_date
         self.author_id = author_id
         self.genre = genre
+        self.quantity = quantity
+        self.book_hash = md5(str(name).encode("utf-8") + str(publication_date).encode("utf-8")).hexdigest()
