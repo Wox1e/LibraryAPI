@@ -9,7 +9,7 @@ import jwt
 from config import settings
 from time import time
 from db.models import User
-from fastapi import Response
+from fastapi import Response, Request
 from db.core import session
 
 secret_key = settings.SECRET_KEY
@@ -82,7 +82,7 @@ class JWTvalidator:
 
         try:
             JWTdecoder.decode(token)
-        except jwt.exceptions.InvalidSignatureError:
+        except:
             return False
         else:
             return True
@@ -97,12 +97,13 @@ class JWTdecoder:
 class TokenHandler:
 
     @staticmethod
-    def remove_tokens(response:Response):
+    def remove_tokens(response:Response) -> None:
         response.delete_cookie(key="access_token")
         response.delete_cookie(key="refresh_token")
 
     @staticmethod
     def set_tokens(user:User, response:Response) -> None:
+        if user is None: return TokenHandler.remove_tokens(response)
         token_body = {
             "userId":user.id,
             "is_admin":user.is_admin
@@ -118,3 +119,37 @@ class TokenHandler:
         id = decoded_token["userId"]
         user = session.query(User).filter(User.id == id).first()
         return user
+
+
+class UserValidation:
+    
+    is_token_valid: bool
+    user:           User
+    is_admin:       bool
+
+    class NotAuthorized(Exception):
+        reason: str
+        def __str__(self):
+            return self.reason
+        def __init__(self, reason:str):
+            self.reason = reason
+
+
+    def __init__(self, request:Request):
+        try:
+            access_token = request.cookies["access_token"]
+            self.is_token_valid = JWTvalidator.check(access_token)
+            self.user = TokenHandler.get_user_bytoken(access_token)
+            if self.user is None: raise self.NotAuthorized("User not found")
+            self.is_admin = self.user.is_admin
+        except KeyError:
+            raise self.NotAuthorized("token not found")
+        except jwt.exceptions.PyJWTError as e:
+            raise self.NotAuthorized(e)
+        
+
+class AdminValidation:
+    def __init__(self, request:Request):
+        validation = UserValidation(request)
+        if not validation.is_admin: raise UserValidation.NotAuthorized("not a admin")
+
