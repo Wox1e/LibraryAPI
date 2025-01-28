@@ -129,25 +129,29 @@ class UserValidation:
     is_admin:       bool
 
     class NotAuthorized(Exception):
-        ...
+        reason: str
+        def __str__(self):
+            return self.reason
+        def __init__(self, reason:str):
+            self.reason = reason
 
 
     def __init__(self, request:Request):
-    
         try:
             access_token = request.cookies["access_token"]
             self.is_token_valid = JWTvalidator.check(access_token)
+            self.user = TokenHandler.get_user_bytoken(access_token)
+            self.is_admin = self.user.is_admin
         except KeyError:
-            self.is_token_valid = False
-            access_token = "not.a.token"
-
-        if not self.is_token_valid:
-            raise self.NotAuthorized
-            
+            raise self.NotAuthorized("token not found")
+        except jwt.exceptions.PyJWTError as e:
+            raise self.NotAuthorized(e)
         
-        self.user = TokenHandler.get_user_bytoken(access_token)
-        self.is_admin = self.user.is_admin
 
+class AdminValidation:
+    def __init__(self, request:Request):
+        validation = UserValidation(request)
+        if not validation.is_admin: raise UserValidation.NotAuthorized("not a admin")
 
 
 

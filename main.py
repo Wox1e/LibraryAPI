@@ -1,11 +1,9 @@
 from fastapi import FastAPI, Request, Response
-from db.models import User, Author
+from db.models import User, Author, Book
 from db.core import session
 from hashlib import sha256
-from auth import  JWTvalidator, TokenHandler, UserValidation
-from validators import loginUserModel, registerUserModel, authorCreateModel
-
-
+from auth import  JWTvalidator, TokenHandler, UserValidation, AdminValidation
+from validators import *
 
 
 app = FastAPI()
@@ -88,15 +86,21 @@ def logout(response:Response):
         return {"status": "Error"}
     
 
+@app.post("/test")
+def test(request:Request):
+    try:
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
+
+
 
 @app.post("/author/create")
 def create_author(request:Request, author_input:authorCreateModel):
-    
     try:
-        validation = UserValidation(request)
-        if not validation.is_admin: raise UserValidation.NotAuthorized
-    except UserValidation.NotAuthorized:
-        return {"status":"NotAuthorized"}
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
 
 
     author = Author(author_input.name, author_input.bio, author_input.birth_date)
@@ -110,12 +114,10 @@ def create_author(request:Request, author_input:authorCreateModel):
 
 @app.get("/author/{id}")
 def get_author(id:int, request:Request):
-
     try:
-        validation = UserValidation(request)
-        if not validation.is_admin: raise UserValidation.NotAuthorized
-    except UserValidation.NotAuthorized:
-        return {"status":"NotAuthorized"}
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
 
 
     author = session.query(Author).filter(Author.id == id).first()
@@ -123,26 +125,22 @@ def get_author(id:int, request:Request):
 
 @app.get("/author")
 def get_all_authors(request:Request):
-
     try:
-        validation = UserValidation(request)
-        if not validation.is_admin: raise UserValidation.NotAuthorized
-    except UserValidation.NotAuthorized:
-        return {"status":"NotAuthorized"}
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
 
     authors = session.query(Author).all()
     return authors
 
 @app.put("/author/{id}")
 def update_author(request:Request, author_input:authorCreateModel, id:int):
-    
     try:
-        validation = UserValidation(request)
-        if not validation.is_admin: raise UserValidation.NotAuthorized
-    except UserValidation.NotAuthorized:
-        return {"status":"NotAuthorized"}
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
     
-    author = get_author(id)
+    author = get_author(request, id)
 
     try:
         author.name = author_input.name
@@ -156,17 +154,100 @@ def update_author(request:Request, author_input:authorCreateModel, id:int):
 
 @app.delete("/author/{id}")
 def delete_author(request:Request, id:int):
-
     try:
-        validation = UserValidation(request)
-        if not validation.is_admin: raise UserValidation.NotAuthorized
-    except UserValidation.NotAuthorized:
-        return {"status":"NotAuthorized"}
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
 
 
     try:
-        author = get_author(id)
+        author = get_author(request, id)
         session.delete(author)
+        session.commit()
+    except:
+        {"status":"Failed"}
+    
+    return {"status": "Ok"}
+
+
+
+@app.post("/book/create")
+def create_book(request:Request, book_input:bookCreateModel):
+    try:
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
+    
+    author = session.query(Author).filter(Author.id == book_input.author_id).first()
+    if author is None: return {"status":"Error","message":f"Author with author_id = {book_input.author_id} doesnt exist."}
+
+    try:
+        book = Book(book_input.name, book_input.description, book_input.publication_date, book_input.author_id, book_input.genre)
+        session.add(book)
+        session.commit()
+    except:
+        session.rollback()
+        return {"status":"Error", "message":"Cannot create new book"}
+    
+    return {"status":"Ok"}
+
+@app.get("/book/{id}")
+def get_book(request:Request, id:int):
+    try:
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
+
+
+    book = session.query(Book).filter(Book.id == id).first()
+    return book
+
+@app.get("/book")
+def get_all_books(request:Request):
+    try:
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
+
+    book = session.query(Book).all()
+    return book
+
+@app.put("/book/{id}")
+def update_book(request:Request, book_input:bookCreateModel, id:int):
+    try:
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
+    
+    author = session.query(Author).filter(Author.id == book_input.author_id).first()
+    if author is None: return {"status":"Error","message":f"Author with author_id = {book_input.author_id} doesnt exist."}
+
+    book = get_book(request, id)
+
+    try:
+        book.name = book_input.name
+        book.description = book_input.description
+        book.publication_date = book_input.publication_date
+        book.author_id = book_input.author_id
+        book.genre = book_input.genre
+        session.commit()
+    except:
+        session.rollback()
+        return {"status":"Error"}
+
+    return {"status": "Ok"}
+
+@app.delete("/book/{id}")
+def delete_book(request:Request, id:int):
+    try:
+        AdminValidation(request)
+    except UserValidation.NotAuthorized as e:
+        return {"status":"NotAuthorized", "error":str(e.reason)}
+
+
+    try:
+        book = get_book(request, id)
+        session.delete(book)
         session.commit()
     except:
         {"status":"Failed"}
