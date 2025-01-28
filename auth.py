@@ -141,6 +141,7 @@ class UserValidation:
             access_token = request.cookies["access_token"]
             self.is_token_valid = JWTvalidator.check(access_token)
             self.user = TokenHandler.get_user_bytoken(access_token)
+            if self.user is None: raise self.NotAuthorized("User not found")
             self.is_admin = self.user.is_admin
         except KeyError:
             raise self.NotAuthorized("token not found")
