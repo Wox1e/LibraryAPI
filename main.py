@@ -6,6 +6,7 @@ from auth import  JWTvalidator, TokenHandler, UserValidation, AdminValidation
 from validators import *
 
 
+
 app = FastAPI()
 
 @app.get("/auth/refresh")
@@ -87,8 +88,6 @@ def logout(response:Response):
     except:
         return {"status": "Error"}
     
-
-
 
 @app.post("/author/create")
 def create_author(request:Request, author_input:authorCreateModel):
@@ -256,3 +255,4 @@ def delete_book(request:Request, id:int):
         {"status":"Failed"}
     
     return {"status": "Ok"}
+

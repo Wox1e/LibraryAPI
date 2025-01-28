@@ -104,7 +104,6 @@ class TokenHandler:
     @staticmethod
     def set_tokens(user:User, response:Response) -> None:
         if user is None: return TokenHandler.remove_tokens(response)
-
         token_body = {
             "userId":user.id,
             "is_admin":user.is_admin
@@ -154,7 +153,3 @@ class AdminValidation:
         validation = UserValidation(request)
         if not validation.is_admin: raise UserValidation.NotAuthorized("not a admin")
 
-
-
-        
-        
