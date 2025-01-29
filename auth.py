@@ -9,7 +9,8 @@ import jwt
 from config import settings
 from time import time
 from db.models import User
-from fastapi import Response, Request
+from fastapi import Response, Request, HTTPException
+from fastapi.responses import RedirectResponse
 from db.core import session
 
 secret_key = settings.SECRET_KEY
@@ -93,7 +94,6 @@ class JWTdecoder:
         decoded_token = jwt.decode(token, secret_key, algorithms=["HS256"])
         return decoded_token
 
-
 class TokenHandler:
 
     @staticmethod
@@ -122,41 +122,42 @@ class TokenHandler:
         return user
 
 
-class UserValidation:
-    
+
+
+class Validation:
+
     is_token_valid: bool
     user:           User
-    is_admin:       bool
+    is_admin:       bool     
 
-    class NotAuthorized(Exception):
-        reason: str
-        def __str__(self):
-            return self.reason
-        def __init__(self, reason:str):
-            self.reason = reason
-
-
-    def __init__(self, request:Request):
-        try:
-            access_token = request.cookies["access_token"]
-            self.is_token_valid = JWTvalidator.check(access_token)
-            self.user = TokenHandler.get_user_bytoken(access_token)
-            if self.user is None: raise self.NotAuthorized("User not found")
-            self.is_admin = self.user.is_admin
-        except KeyError:
-            raise self.NotAuthorized("token not found")
-        except jwt.exceptions.PyJWTError as e:
-            raise self.NotAuthorized(e)
-        
     def get_user(self) -> User:
         return self.user
 
-class AdminValidation:
+
+
+
+    def __UserValidation(self, request:Request) -> None:
+        access_token = request.cookies["access_token"]
+        self.is_token_valid = JWTvalidator.check(access_token)
+        self.user = TokenHandler.get_user_bytoken(access_token)
+        if self.user is None: raise self.NotAuthorized("User not found")
+        self.is_admin = self.user.is_admin
+
+
     def __init__(self, request:Request):
-        validation = UserValidation(request)
-        if not validation.is_admin: raise UserValidation.NotAuthorized("not a admin")
-
-
-
-        
-        
+        self.__UserValidation(request)                                              # ПЕРЕПИСАТЬ
+    
+    
+    @classmethod
+    def validate(cls, request:Request, admin_validation:bool = False) -> RedirectResponse|None:
+        try:
+            cls.__UserValidation(cls, request)
+            if admin_validation and not cls.user.is_admin: raise jwt.exceptions.InvalidAudienceError
+        except jwt.exceptions.ExpiredSignatureError:
+            return RedirectResponse(url = f"/auth/refresh?redirected_from={request.url.path}")
+        except jwt.exceptions.InvalidAudienceError:
+            raise HTTPException(status_code=403, detail=f"You have not permission")
+        except Exception as e:
+            raise HTTPException(status_code=401, detail=f"Auth error. {e}")
+        else:
+            return None

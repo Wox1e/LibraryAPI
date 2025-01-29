@@ -14,7 +14,7 @@ db_url = f"postgresql+psycopg://{settings.DB_USER}:{settings.DB_PASS}@{settings.
 
 engine = create_engine(                 # CREATES ENGINE
     url=db_url,                         # DB URL
-    echo=True,                          # PRINT LOGS IN CONSOLE
+    echo=False,                          # PRINT LOGS IN CONSOLE
     pool_size=10,                       # MAX CONNECTIONS
     max_overflow=5                      # MAX ADDITIONAL CONNECTIONS
 )
