@@ -1,5 +1,5 @@
 from models import Base
-from db import engine
+from core import engine
 
 def init_db():                                              # DB INITIALIZATION
     Base.metadata.drop_all(engine)                          # DELETES ALL TABLES
