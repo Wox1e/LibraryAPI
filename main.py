@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import RedirectResponse
-from db.models import User, Author, Book
+from db.models import User, Author, Book, Rent
 from db.core import session
 from hashlib import sha256
 from sqlalchemy.orm import load_only
@@ -61,7 +61,7 @@ def register(input_user:registerUserModel, response:Response, request:Request):
         session.commit()
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=f"Cannot create your account. Check request. Error message: {e}")
+        raise HTTPException(status_code=400, detail=f"Cannot create your account. Check request.")
     
     TokenHandler.set_tokens(user, response)    
     return {"status":"Ok", "detail":"Your account was created"}
@@ -108,7 +108,7 @@ def create_author(request:Request, author_input:authorCreateModel):
         session.commit()
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=f"Cannot create author. Check request. Error message: {e}")
+        raise HTTPException(status_code=400, detail=f"Cannot create author. Check request.")
     
     return {"status":"Ok", "detail":"Author created"}
 
@@ -145,7 +145,7 @@ def update_author(request:Request, author_input:authorCreateModel, id:int):
         session.commit()
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=f"Cannot update author information. Check your request. Error message: {e}")
+        raise HTTPException(status_code=400, detail=f"Cannot update author information. Check your request.")
 
     return {"status": "Ok", "detail":"Author info updated"}
 
@@ -162,7 +162,7 @@ def delete_author(request:Request, id:int):
         session.delete(author)
         session.commit()
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Cannot delete author. Check your request. Error message: {e}")
+        raise HTTPException(status_code=400, detail=f"Cannot delete author. Check your request.")
     
     return {"status": "Ok", "detail":"Author deleted"}
 
@@ -183,7 +183,7 @@ def create_book(request:Request, book_input:bookCreateModel):
         session.commit()
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=f"Cannot create new book. Check your request. Error: {e}")
+        raise HTTPException(status_code=400, detail=f"Cannot create new book. Check your request.")
     
     return {"status":"Ok", "detail":"Book was created"}
 
@@ -227,7 +227,7 @@ def update_book(request:Request, book_input:bookCreateModel, id:int):
         session.commit()
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=f"Cannot update book. Check your request. Error: {e}")
+        raise HTTPException(status_code=400, detail=f"Cannot update book. Check your request.")
 
     return {"status": "Ok", "detail":"Book was updated"}
 
@@ -243,11 +243,48 @@ def delete_book(request:Request, id:int):
         session.delete(book)
         session.commit()
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Cannot delete book. Check your request. Error: {e}")
+        raise HTTPException(status_code=400, detail=f"Cannot delete book. Check your request.")
     
     return {"status": "Ok", "detail":"Book was deleted"}
 
+@app.post("/book/rent")
+def rent_book(request:Request, book_input:bookRentModel):
+    validation_response = Validation.validate(request, True)
+    if validation_response is not None: return validation_response
 
+    try:
+        rent = Rent(book_input.reader_id, book_input.book_id, book_input.return_date)
+    except Rent.BooksLimitExceed as e:
+        raise HTTPException(status_code=400, detail=e.reason)
+
+    try:
+        book = session.query(Book).filter(Book.id == book_input.book_id).first()
+        session.add(rent)
+        book.quantity = book.quantity - 1
+        session.commit()
+    except:
+        session.rollback()
+        raise HTTPException(status_code=400, detail="Cannot rent a book. Check your request")
+    
+    return {"status":"Ok", "detail":"Book was rented", "rent_id":rent.rent_id}
+
+@app.post("/book/return")
+def return_book(request:Request, rent_input:rentReturnModule):
+    validation_response = Validation.validate(request, True)
+    if validation_response is not None: return validation_response
+
+    try:
+        rent = session.query(Rent).filter(Rent.rent_id == rent_input.rent_id).first()
+        book = session.query(Book).filter(Book.id == rent.book_id).first()
+        session.delete(rent)
+        book.quantity = book.quantity + 1
+        session.commit()
+    except:
+        session.rollback()
+        raise HTTPException(400, detail="Cannot return book")
+    
+    return {"status":"Ok", "detail":"Book was returned"}
+    
 
 @app.get("/reader")
 def get_readers(request:Request):

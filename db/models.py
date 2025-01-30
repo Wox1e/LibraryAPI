@@ -1,6 +1,9 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Boolean, Date, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, Date, ForeignKey, CheckConstraint
 from hashlib import md5
+from db.core import session
+from config import settings
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -77,17 +80,17 @@ class Author(Base):                                                             
 class Book(Base):                                                                   # ORM model for book_table
     __tablename__ = "book_table"                                                    # Table name
 
-    id = Column("id", Integer, primary_key=True)                                    # ID                   | serial, primary_key
-    name = Column("name", String(64), nullable=False)                               # name                 | character varying(64), not null
-    description = Column("description", String(1000), nullable=False)               # description          | character varying(1000), not null
-    publication_date = Column("publication_date", Date, nullable=False)             # publication_date     | date, not null
-    author_id = Column(Integer, ForeignKey("author_table.id"), nullable=False)      # author_id            | int, foreign key
-    genre = Column("genre", String(32), nullable=False)                             # genre                | character varying(32), not null
-    quantity = Column("quantity", Integer, nullable=False)                          # quantity             | int, not null
-    book_hash = Column("book_hash", String(32), nullable=False, unique=True)        # book_hash            | character varying(32), not null, unique
+    id = Column("id", Integer, primary_key=True)                                                     # ID                   | serial, primary_key
+    name = Column("name", String(64), nullable=False)                                                # name                 | character varying(64), not null
+    description = Column("description", String(1000), nullable=False)                                # description          | character varying(1000), not null
+    publication_date = Column("publication_date", Date, nullable=False)                              # publication_date     | date, not null
+    author_id = Column(Integer, ForeignKey("author_table.id"), nullable=False)                       # author_id            | int, foreign key
+    genre = Column("genre", String(32), nullable=False)                                              # genre                | character varying(32), not null
+    quantity = Column("quantity", Integer, CheckConstraint("quantity >= 0"), nullable=False)         # quantity             | int, not null, check for negative values
+    book_hash = Column("book_hash", String(32), nullable=False, unique=True)                         # book_hash            | character varying(32), not null, unique
 
-                                                                                    # Book hash uses to store books with same name and different publication dates
-                                                                                    # And not allows store one book many times
+                                                                                                    # Book hash uses to store books with same name and different publication dates
+                                                                                                    # And not allows store one book many times
 
 
     def __init__(self, 
@@ -115,3 +118,43 @@ class Book(Base):                                                               
         self.genre = genre
         self.quantity = quantity
         self.book_hash = md5(str(name).encode("utf-8") + str(publication_date).encode("utf-8")).hexdigest()
+
+class Rent(Base):                                                                   # ORM model for rent_table
+    __tablename__ = "rent_table"                                                                    # Table name
+
+    rent_id = Column("rent_id", Integer, primary_key=True)                                          # rent_id    | serial, primary key
+    reader_id = Column("reader_id", Integer, ForeignKey("user_table.id"), nullable=False)           # reader_id  | int, foreign key to user_table (id column), not null
+    book_id = Column("book_id", ForeignKey("book_table.id"), nullable=False)                        # book_id    | int, foreign key to book_table (id column), not null
+    issue_date = Column("issue_date", Date, nullable=False)                                         # issue_date | date, not null
+    return_date = Column("return_date", Date, nullable=False)                                       # return_date| date, not null
+
+
+    class BooksLimitExceed(Exception):
+        reason:str = f"User already have {settings.BOOKS_LIMIT_FOR_READER} rented books"
+
+    
+    def __checkBooksLimit(self, reader_id:int) -> None:
+        """Raises BooksLimitExceed exception if user already rented limit amount books"""
+        rented_books = session.query(Rent).filter(Rent.reader_id == reader_id)
+        if(rented_books.count() >= settings.BOOKS_LIMIT_FOR_READER): raise self.BooksLimitExceed
+
+
+    def __init__(self, 
+                 reader_id: int, 
+                 book_id: int, 
+                 return_date: str,
+                 ):
+        
+        """
+        Initialization of new Rent object.
+        
+        :param reader_id: ID of user who rents book                   \n
+        :param book_id: ID of rented book                             \n
+        :param return_date: Return date                               \n
+        """
+        self.__checkBooksLimit(reader_id)
+
+        self.reader_id = reader_id
+        self.book_id = book_id
+        self.issue_date =  datetime.today().strftime('%Y-%m-%d')
+        self.return_date = return_date

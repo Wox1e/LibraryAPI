@@ -35,3 +35,11 @@ class bookCreateModel(BaseModel):
     quantity:         int = Field(..., gt=0)
 
 
+class bookRentModel(BaseModel):
+    reader_id:      int
+    book_id:        int
+    return_date:    datetime.date
+
+
+class rentReturnModule(BaseModel):
+    rent_id: int

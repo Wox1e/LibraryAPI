@@ -10,7 +10,9 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     REF_TOK_LIFETIME_DAYS: int
     ACCS_TOK_LIFETIME_MIN: int
-    
+
+    BOOKS_LIMIT_FOR_READER: int
+
 
     model_config = SettingsConfigDict(env_file=".env")
 
