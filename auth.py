@@ -148,7 +148,7 @@ class Validation:
         try:
             self.__UserValidation(request)
         except:
-            raise HTTPException(status_code=401, detail="Auth error")
+            pass
     
     @classmethod
     def validate(cls, request:Request, admin_validation:bool = False) -> RedirectResponse|None:
@@ -159,6 +159,8 @@ class Validation:
             return RedirectResponse(url = f"/auth/refresh?redirected_from={request.url.path}")
         except jwt.exceptions.InvalidAudienceError:
             raise HTTPException(status_code=403, detail=f"You have not permission")
+        except KeyError:
+            return RedirectResponse(url = f"/auth/refresh?redirected_from={request.url.path}")
         except Exception as e:
             raise HTTPException(status_code=401, detail=f"Auth error. {e}")
         else:

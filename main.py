@@ -11,7 +11,7 @@ from validators import *
 app = FastAPI()
 
 @app.route(path="/auth/refresh", methods=["GET", "POST", "DELETE", "PUT"])
-def refresh(request:Request, response:Response = Response()):
+def refresh(request:Request):
 
     """Endpoint for toking refreshing\n
         Checks refresh token \n
@@ -37,8 +37,8 @@ def refresh(request:Request, response:Response = Response()):
     except:
         pass
   
+    response = Response(content="Your tokens were refreshed")
     TokenHandler.set_tokens(user, response)
-    response.body = {"status":"Ok", "detail":"Your tokens were refreshed"}
     return response
 
 @app.post("/auth/register")
@@ -189,12 +189,35 @@ def create_book(request:Request, book_input:bookCreateModel):
 
 @app.get("/book/{id}")
 def get_book(request:Request, id:int):
-    validation_response = Validation.validate(request, True)
+    validation = Validation(request)
+    validation_response = validation.validate(request)
     if validation_response is not None: return validation_response
-
     if id not in range(-2_147_483_647, 2_147_483_647): raise HTTPException(status_code=400, detail=f"Value out if int range")
-    book = session.query(Book).filter(Book.id == id).first()
-    return book
+    
+    is_admin = validation.is_admin
+    
+    if is_admin:
+        book = session.query(Book).filter(Book.id == id).first()
+        return book
+    
+
+    book = session.query(Book).\
+    options(load_only(Book.name, Book.description, Book.genre, Book.publication_date, Book.author_id, Book.id, Book.description)).\
+    first()
+    
+    author = session.query(Author).\
+    filter(Author.id == book.author_id).\
+    options(load_only(Author.name)). \
+    first()
+
+    return {
+        "Book name": book.name,
+        "Description":book.description,
+        "Genre": book.genre,
+        "Publication date": book.publication_date,
+        "Author": author.name,
+        "Book Article": book.id
+    }
 
 @app.get("/book")
 def get_all_books(request:Request):
@@ -331,7 +354,7 @@ def get_profile(request:Request):
 
 @app.put("/profile")
 def update_profile(input_user:updateUserModel, request:Request):
-    validation = Validation(request, False)
+    validation = Validation(request)
     validation_response = validation.validate(request)
     if validation_response is not None: return validation_response
 
@@ -347,3 +370,7 @@ def update_profile(input_user:updateUserModel, request:Request):
         raise HTTPException(status_code=400, detail=f"Cannot update profile. Check your request")
 
     return {"status": "Ok", "detail":"Your profile was updated"}
+
+
+
+
