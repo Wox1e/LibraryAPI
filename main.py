@@ -1,3 +1,5 @@
+"""Main module with FastAPI endpoints"""
+
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import RedirectResponse
 from db.models import User, Author, Book, Rent
@@ -18,25 +20,29 @@ def refresh(request:Request):
     """
 
     try:
-         refresh_token = request.cookies["refresh_token"]
+        refresh_token = request.cookies["refresh_token"]
     except KeyError:
-        raise HTTPException(status_code=401, detail="Cannot find refresh token. Login or register via /auth/login or /auth/register")
-   
+        raise HTTPException(status_code=401,
+                            detail="Cannot find refresh token. Login or register via /auth/login or /auth/register"
+                            )
+
     is_valid = JWTvalidator.check(refresh_token)
-    if not is_valid: raise HTTPException(status_code=401, detail="Invalid refresh token")
+    if not is_valid: 
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
     user = TokenHandler.get_user_bytoken(refresh_token)
-    if user is None: raise HTTPException(status_code=401, detail="User not found")
+    if user is None: 
+        raise HTTPException(status_code=401, detail="User not found")
 
     try:
         redirected_from = dict(request.query_params)["redirected_from"]
         redirect_response = RedirectResponse(url=redirected_from)
-        if redirected_from is not None: 
+        if redirected_from is not None:
             TokenHandler.set_tokens(user, redirect_response)
             return redirect_response
     except:
         pass
-  
+
     response = Response(content="Your tokens were refreshed")
     TokenHandler.set_tokens(user, response)
     return response
@@ -53,17 +59,22 @@ def register(input_user:registerUserModel, response:Response, request:Request):
 
     """
     password = input_user.password
-    hash = sha256(password.encode('utf-8')).hexdigest()    
-    user = User(input_user.first_name, input_user.second_name, input_user.birth_date, input_user.username, hash)
-    
+    hash = sha256(password.encode('utf-8')).hexdigest()
+    user = User(input_user.first_name,
+                input_user.second_name,
+                input_user.birth_date,
+                input_user.username,
+                hash)
+
     try:
         session.add(user)
         session.commit()
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=f"Cannot create your account. Check request.")
-    
-    TokenHandler.set_tokens(user, response)    
+        raise HTTPException(status_code=400, 
+                            detail="Cannot create your account. Check request.")
+
+    TokenHandler.set_tokens(user, response)
     return {"status":"Ok", "detail":"Your account was created"}
 
 @app.post("/auth/login")
@@ -75,17 +86,23 @@ def login(input_user:loginUserModel, response:Response):
     """
 
     password = input_user.password
-    hash = sha256(password.encode('utf-8')).hexdigest()    
+    hash = sha256(password.encode('utf-8')).hexdigest()
 
-    user = session.query(User).filter(User.username == input_user.username).first()
-    if user is None: return {"status":"Failed", "message":"User not found"}
+    user = session.query(User)\
+        .filter(User.username == input_user.username).\
+        first()
+
+    if user is None: 
+        return {"status":"Failed", "message":"User not found"}
+
     user_hash = user.password
 
     if user_hash == hash:
         TokenHandler.set_tokens(user, response)
         return {"status": "Ok", "detail":f"You logged in as {user.username}"}
     else:
-        raise HTTPException(401, "Wrong username or password. Check your request")
+        raise HTTPException(401, 
+                            detail="Wrong username or password. Check your request")
 
 @app.get("/auth/logout")
 def logout(response:Response):
@@ -94,7 +111,7 @@ def logout(response:Response):
         return {"status":"Ok", "detail":"You logged out"}
     except:
         return {"status": "Error"}
-    
+
 
 
 @app.post("/author/create")
@@ -102,14 +119,17 @@ def create_author(request:Request, author_input:authorCreateModel):
     validation_response = Validation.validate(request, True)
     if validation_response is not None: return validation_response
 
-    author = Author(author_input.name, author_input.bio, author_input.birth_date)
+    author = Author(author_input.name,
+                    author_input.bio,
+                    author_input.birth_date)
     try:
         session.add(author)
         session.commit()
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=f"Cannot create author. Check request.")
-    
+        raise HTTPException(status_code=400, 
+                            detail=f"Cannot create author. Check request.")
+
     return {"status":"Ok", "detail":"Author created"}
 
 @app.get("/author/{id}")
@@ -117,14 +137,20 @@ def get_author(id:int, request:Request):
     validation_response = Validation.validate(request, True)
     if validation_response is not None: return validation_response
 
-    if id not in range(-2_147_483_647, 2_147_483_647): raise HTTPException(status_code=400, detail=f"Value out of int range")
-    author = session.query(Author).filter(Author.id == id).first()
+    if id not in range(-2_147_483_647, 2_147_483_647):
+        raise HTTPException(status_code=400, detail=f"Value out of int range")
+
+    author = session.query(Author).\
+        filter(Author.id == id).\
+        first()
+
     return author
 
 @app.get("/author")
 def get_all_authors(request:Request):
     validation_response = Validation.validate(request, True)
-    if validation_response is not None: return validation_response
+    if validation_response is not None: 
+        return validation_response
 
     authors = session.query(Author).all()
     return authors
@@ -132,10 +158,11 @@ def get_all_authors(request:Request):
 @app.put("/author/{id}")
 def update_author(request:Request, author_input:authorCreateModel, id:int):
     validation_response = Validation.validate(request, True)
-    if validation_response is not None: return validation_response
-    
+    if validation_response is not None:
+        return validation_response
 
-    if id not in range(-2_147_483_647, 2_147_483_647): raise HTTPException(status_code=400, detail=f"Value out of int range")
+    if id not in range(-2_147_483_647, 2_147_483_647):
+        raise HTTPException(status_code=400, detail=f"Value out of int range")
     author = get_author(id, request)
 
     try:
@@ -145,7 +172,8 @@ def update_author(request:Request, author_input:authorCreateModel, id:int):
         session.commit()
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=f"Cannot update author information. Check your request.")
+        raise HTTPException(status_code=400,
+                            detail=f"Cannot update author information. Check your request.")
 
     return {"status": "Ok", "detail":"Author info updated"}
 
@@ -163,7 +191,7 @@ def delete_author(request:Request, id:int):
         session.commit()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Cannot delete author. Check your request.")
-    
+
     return {"status": "Ok", "detail":"Author deleted"}
 
 
@@ -370,7 +398,3 @@ def update_profile(input_user:updateUserModel, request:Request):
         raise HTTPException(status_code=400, detail=f"Cannot update profile. Check your request")
 
     return {"status": "Ok", "detail":"Your profile was updated"}
-
-
-
-
