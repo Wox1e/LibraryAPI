@@ -9,5 +9,5 @@
 5. Взаимодействие с базой данных:
     * [Модуль `init_db.py`](db/init_db.md) - Инициализация базы данных
     * [Модуль `core.py`](db/core.md) - Управление подключением к базе данных и создание сессий
-    * [Модуль `models.py`](/docs/db/models.md) - SQLAlchemy ORM классы 
+    * [Модуль `models.py`](db/models.md) - SQLAlchemy ORM классы 
 
