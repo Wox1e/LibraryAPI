@@ -29,3 +29,5 @@ passw = settings.DB_PASS
 host = settings.DB_HOST
 port = settings.DB_PORT
 db_name = settings.DB_NAME
+
+```
