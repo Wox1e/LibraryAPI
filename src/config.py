@@ -14,6 +14,6 @@ class Settings(BaseSettings):
     ACCS_TOK_LIFETIME_MIN: int
     BOOKS_LIMIT_FOR_READER: int
 
-    model_config = SettingsConfigDict(env_file="src/.env")
+    model_config = SettingsConfigDict(env_file=".env")
 
 settings = Settings()
