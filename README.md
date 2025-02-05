@@ -47,7 +47,7 @@ RESTful API для управления библиотекой. Оно позв�
 
 ```
 git clone https://github.com/Wox1e/LibraryAPI
-cd LibraryAPI
+cd LibraryAPI/src
 ```
 
 2) Запуск
@@ -109,7 +109,7 @@ A RESTful API for library management. It allows users to register, authenticate,
 1.  **Clone the repository**
 ```
 git clone https://github.com/Wox1e/LibraryAPI
-cd LibraryAPI
+cd LibraryAPI/src
 ```
 2. **Run the application**
 ```
