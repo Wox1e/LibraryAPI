@@ -47,11 +47,36 @@ RESTful API для управления библиотекой. Оно позв�
 
 ```
 git clone https://github.com/Wox1e/LibraryAPI
-cd LibraryAPI/src
+```
+2) Измените данные в .env
+```
+   # DEFAULT VALUES. CHANGE ON DEPLOY
+
+     DB_HOST = "db_host"
+     DB_PORT = 5433
+     DB_USER = "postgres"
+     DB_PASS = "postgres_pass"
+     DB_NAME = "library"
+     
+     SECRET_KEY = "somesecretkey_98754809Y&(*HUPOI(h))"
+     REF_TOK_LIFETIME_DAYS = 60
+     ACCS_TOK_LIFETIME_MIN = 10
+     
+     
+     
+     BOOKS_LIMIT_FOR_READER = 5
+```
+Укажите данные своей базы данных
+
+3) Создание таблиц
+```
+   alembic revision --autogenerate
+   alembic upgrade head
 ```
 
-2) Запуск
+4) Запуск
 ```
+cd LibraryAPI/src
 python -m uvicorn main:app --reload 
 ```
 
@@ -109,10 +134,36 @@ A RESTful API for library management. It allows users to register, authenticate,
 1.  **Clone the repository**
 ```
 git clone https://github.com/Wox1e/LibraryAPI
+```
+2. Change .env file
+```
+   # DEFAULT VALUES. CHANGE ON DEPLOY
+
+     DB_HOST = "db_host"
+     DB_PORT = 5433
+     DB_USER = "postgres"
+     DB_PASS = "postgres_pass"
+     DB_NAME = "library"
+     
+     SECRET_KEY = "somesecretkey_98754809Y&(*HUPOI(h))"
+     REF_TOK_LIFETIME_DAYS = 60
+     ACCS_TOK_LIFETIME_MIN = 10
+     
+     
+     
+     BOOKS_LIMIT_FOR_READER = 5
+```
+Enter your creditials
+
+3. Create tables
+ ```
+   alembic revision --autogenerate
+   alembic upgrade head
+ ```
+
+4. **Run the application**
+```
 cd LibraryAPI/src
-```
-2. **Run the application**
-```
 python -m uvicorn main:app --reload 
 ```
 
