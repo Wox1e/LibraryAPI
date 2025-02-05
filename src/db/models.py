@@ -10,7 +10,7 @@ from hashlib import md5
 from datetime import datetime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Boolean, Date, ForeignKey, CheckConstraint
-from core import session
+from db.core import session
 from config import settings
 
 Base = declarative_base()
