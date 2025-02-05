@@ -48,7 +48,7 @@ RESTful API для управления библиотекой. Оно позв�
 ```
 git clone https://github.com/Wox1e/LibraryAPI
 ```
-2) Измените данные в .env
+2) Измените данные в src/.env
 ```
    # DEFAULT VALUES. CHANGE ON DEPLOY
 
@@ -135,7 +135,7 @@ A RESTful API for library management. It allows users to register, authenticate,
 ```
 git clone https://github.com/Wox1e/LibraryAPI
 ```
-2. Change .env file
+2. Change src/.env file
 ```
    # DEFAULT VALUES. CHANGE ON DEPLOY
 
