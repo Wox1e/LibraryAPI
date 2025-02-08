@@ -1,4 +1,4 @@
-"""Enviroment variables managing module"""
+"""Environment variables managing module"""
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
